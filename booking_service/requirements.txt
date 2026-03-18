@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+grpcio
+grpcio-tools
+SQLAlchemy
+psycopg2-binary
+pydantic-settings
+httpx
+pytest
