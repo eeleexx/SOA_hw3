@@ -11,9 +11,11 @@ CREATE TABLE flights (
     price DECIMAL(10, 2) NOT NULL CHECK (price > 0),
     status VARCHAR(20) NOT NULL DEFAULT 'SCHEDULED' CHECK (status IN ('SCHEDULED', 'DEPARTED', 'CANCELLED', 'COMPLETED')),
     
-    CONSTRAINT check_available_seats CHECK (available_seats <= total_seats),
-    UNIQUE (flight_number, departure_time)
+    CONSTRAINT check_available_seats CHECK (available_seats <= total_seats)
 );
+
+CREATE UNIQUE INDEX uq_flight_number_departure_date
+ON flights (flight_number, (DATE(departure_time)));
 
 CREATE TABLE seat_reservations (
     id SERIAL PRIMARY KEY,

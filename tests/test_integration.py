@@ -87,3 +87,47 @@ def test_cancel_booking():
     # Assert flight inventory is back exactly to what it was before this test
     flight_res = httpx.get(f"{BASE_URL}/flights/1")
     assert flight_res.json()["available_seats"] == initial_seats
+
+def test_reserve_not_enough_seats():
+    # Attempt to reserve 2000 seats on flight 1 (only has 150 total)
+    booking_payload = {
+        "user_id": 125,
+        "flight_id": 1,
+        "passenger_name": "Overbook User",
+        "passenger_email": "overbook@example.com",
+        "seat_count": 2000
+    }
+    
+    res = httpx.post(f"{BASE_URL}/bookings", json=booking_payload)
+    assert res.status_code == 400
+    assert "Not enough seats" in res.json()["detail"]
+
+def test_cancel_already_cancelled():
+    # Make a fresh booking
+    booking_payload = {
+        "user_id": 126,
+        "flight_id": 1,
+        "passenger_name": "Double Cancel",
+        "passenger_email": "cancel2@example.com",
+        "seat_count": 1
+    }
+    res = httpx.post(f"{BASE_URL}/bookings", json=booking_payload)
+    assert res.status_code == 200
+    booking_id = res.json()["id"]
+
+    # First cancel
+    cancel_res_1 = httpx.post(f"{BASE_URL}/bookings/{booking_id}/cancel")
+    assert cancel_res_1.status_code == 200
+    
+    # Second cancel (should fail)
+    cancel_res_2 = httpx.post(f"{BASE_URL}/bookings/{booking_id}/cancel")
+    assert cancel_res_2.status_code == 400
+    assert "already cancelled" in cancel_res_2.json()["detail"].lower()
+
+def test_circuit_breaker_status():
+    res = httpx.get(f"{BASE_URL}/circuit-breaker-status")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["state"] == "CLOSED"
+    assert data["error_count"] == 0
+

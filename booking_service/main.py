@@ -1,10 +1,10 @@
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import Optional, List
+from typing import Optional
 from pydantic import BaseModel
 import grpc
 
-from database import get_db, Base, engine
+from database import get_db
 from models import Booking
 from client import flight_client, circuit_breaker
 
@@ -15,12 +15,7 @@ def get_cb_status():
     """
     DEBUG ENDPOINT: Observe the state of the Circuit Breaker.
     """
-    return {
-        "state": circuit_breaker.state,
-        "error_count": circuit_breaker.error_count,
-        "threshold": 5,
-        "timeout_seconds": 10
-    }
+    return circuit_breaker.snapshot()
 
 class BookingCreate(BaseModel):
     user_id: int
@@ -121,8 +116,8 @@ def cancel_booking(booking_id: int, db: Session = Depends(get_db)):
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
         
-    if booking.status == "CANCELLED":
-        raise HTTPException(status_code=400, detail="Booking already cancelled")
+    if booking.status != "CONFIRMED":
+        raise HTTPException(status_code=400, detail="Only CONFIRMED booking can be cancelled")
         
     try:
         # Release reservation in Flight Service

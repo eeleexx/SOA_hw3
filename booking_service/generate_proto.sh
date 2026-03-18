@@ -1,6 +1,9 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
+
 # Generate protobuf classes for booking_service
-python -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. proto/flight.proto
+PYTHON_BIN="${PYTHON_BIN:-python3}"
+"${PYTHON_BIN}" -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. proto/flight.proto
 
 # Fix import
 sed -i.bak -e 's/import flight_pb2 as flight__pb2/from . import flight_pb2 as flight__pb2/g' proto/flight_pb2_grpc.py
