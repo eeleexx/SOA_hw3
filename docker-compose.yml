@@ -1,0 +1,94 @@
+services:
+  flight_db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: flight_user
+      POSTGRES_PASSWORD: flight_password
+      POSTGRES_DB: flight_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./db_init/flight_init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flight_user -d flight_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  booking_db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: booking_user
+      POSTGRES_PASSWORD: booking_password
+      POSTGRES_DB: booking_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./db_init/booking_init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U booking_user -d booking_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis-master:
+    image: bitnami/redis:latest
+    environment:
+      - REDIS_PASSWORD=password
+    ports:
+      - "6379:6379"
+
+  redis-replica:
+    image: bitnami/redis:latest
+    environment:
+      - REDIS_PASSWORD=password
+      - REDIS_MASTER_HOST=redis-master
+      - REDIS_MASTER_PASSWORD=password
+      - REDIS_REPLICATION_MODE=slave
+    depends_on:
+      - redis-master
+
+  redis-sentinel:
+    image: bitnami/redis-sentinel:latest
+    environment:
+      - REDIS_MASTER_PASSWORD=password
+      - REDIS_SENTINEL_PASSWORD=password
+      - REDIS_MASTER_HOST=redis-master
+      - REDIS_MASTER_PORT_NUMBER=6379
+      - REDIS_MASTER_SET=mymaster
+      - REDIS_SENTINEL_QUORUM=1
+    ports:
+      - "26379:26379"
+    depends_on:
+      - redis-master
+      - redis-replica
+    
+  flight_service:
+    build:
+      context: ./flight_service
+    ports:
+      - "50051:50051"
+    environment:
+      - DATABASE_URL=postgresql://flight_user:flight_password@flight_db:5432/flight_db
+      - REDIS_MODE=sentinel
+      - GRPC_API_KEY=supersecretkey
+    depends_on:
+      flight_db:
+        condition: service_healthy
+      redis-sentinel:
+        condition: service_started
+
+  booking_service:
+    build:
+      context: ./booking_service
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://booking_user:booking_password@booking_db:5432/booking_db
+      - FLIGHT_SERVICE_URL=flight_service:50051
+      - GRPC_API_KEY=supersecretkey
+    depends_on:
+      booking_db:
+        condition: service_healthy
+      flight_service:
+        condition: service_started
