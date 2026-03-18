@@ -22,7 +22,7 @@ API_KEY = os.environ.get("GRPC_API_KEY", "supersecretkey")
 
 if os.environ.get("REDIS_MODE") == "sentinel":
     from redis.sentinel import Sentinel
-    sentinel = Sentinel([('redis-sentinel', 26379)], socket_timeout=0.2)
+    sentinel = Sentinel([('redis-sentinel', 26379)], sentinel_kwargs={'password': 'password'}, socket_timeout=0.2)
     redis_client = sentinel.master_for('mymaster', socket_timeout=0.2, password='password', decode_responses=True)
 else:
     redis_client = redis.Redis.from_url(REDIS_URL, decode_responses=True)
